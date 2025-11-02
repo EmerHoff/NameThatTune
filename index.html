@@ -82,7 +82,6 @@
       <!-- Menu Inicial -->
       <div id="main-menu" class="main-menu">
         <div class="menu-content">
-          <h1>Name That Tune</h1>
           <div class="menu-options">
             <button id="daily-game-btn" class="menu-btn menu-btn-primary">
               <svg
@@ -135,6 +134,41 @@
               Jogo Normal
             </button>
           </div>
+        </div>
+      </div>
+
+      <!-- Seleção de Gênero -->
+      <div id="genre-selection" class="genre-selection hidden">
+        <div class="genre-content">
+          <h1>Escolha o Gênero</h1>
+          <p class="genre-subtitle">
+            Selecione o gênero musical para o desafio
+          </p>
+          <div class="genre-grid" id="genre-grid">
+            <!-- Gêneros serão inseridos aqui via JavaScript -->
+          </div>
+          <button
+            id="back-to-menu-btn"
+            class="menu-btn menu-btn-secondary"
+            style="margin-top: 30px"
+          >
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M19 12H5M12 19L5 12L12 5"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            Voltar
+          </button>
         </div>
       </div>
 

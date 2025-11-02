@@ -14,12 +14,14 @@ import soundManager from "../utils/sounds.util.js";
 class GameController {
   constructor() {
     this.gameState = new GameState();
-    this.deezerService = new DeezerService();
+    this.deezerService = DeezerService; // Serviço exporta funções, não é uma classe
     this.player = new Player("preview-container");
     this.answerOptions = new AnswerOptions("answers-container");
     this.scoreBoard = new ScoreBoard();
     this.modal = new Modal();
     this.optionTracksCache = {}; // Cache options for each track
+    this.lastGameMode = "normal"; // Track last game mode for retry
+    this.lastGenreId = null; // Track last genre ID for retry
 
     this.setupAnswerCallback();
     this.setupPlayerTimeLimitCallback();
@@ -56,20 +58,47 @@ class GameController {
 
   /**
    * Initializes and starts the game
+   * @param {string} gameMode - 'daily' for daily game, 'normal' for normal game
+   * @param {number} genreId - Genre ID for normal game mode
    */
-  async initGame() {
+  async initGame(gameMode = "normal", genreId = null) {
     this.showLoading();
     this.hideError();
     this.hideGame();
     this.hideMainMenu();
 
     try {
-      console.log("Fetching tracks from Deezer API...");
-      const tracks = await this.deezerService.getRandomTracks(5);
+      console.log(
+        `[GameController] Iniciando jogo no modo: ${gameMode}, genreId: ${genreId}`
+      );
+      let tracks;
+
+      if (gameMode === "daily") {
+        console.log(`[GameController] Buscando músicas para Jogo Diário...`);
+        tracks = await this.deezerService.getDailyGameTracks(5);
+      } else if (gameMode === "normal" && genreId) {
+        console.log(
+          `[GameController] Buscando músicas para Jogo Normal com gênero ${genreId}...`
+        );
+        this.lastGenreId = genreId; // Save genre ID for retry
+        tracks = await this.deezerService.getNormalGameTracks(genreId, 5);
+      } else {
+        console.log(
+          `[GameController] Modo não especificado, usando Jogo Diário como fallback...`
+        );
+        // Fallback: usar daily game se não especificado
+        tracks = await this.deezerService.getDailyGameTracks(5);
+      }
+
+      console.log(`[GameController] Tracks recebidos:`, tracks);
 
       if (!tracks || tracks.length === 0) {
         throw new Error("Nenhuma música foi encontrada. Tente novamente.");
       }
+
+      console.log(
+        `[GameController] ${tracks.length} músicas carregadas com sucesso!`
+      );
 
       this.gameState.setTracks(tracks);
       this.gameState.reset();
@@ -115,14 +144,32 @@ class GameController {
     // Get or cache option tracks for this track
     if (!this.optionTracksCache[currentTrack.id]) {
       try {
+        // Determina o genreId:
+        // - No modo normal, usa o lastGenreId
+        // - No modo daily, usa o genreId da música atual (se disponível)
+        const genreId = this.lastGenreId || currentTrack.genreId || null;
+
+        if (!genreId) {
+          throw new Error("Genre ID não disponível para buscar opções");
+        }
+
+        // Busca opções do mesmo gênero da música atual
         const randomOptions = await this.deezerService.getRandomOptions(
-          3,
-          this.gameState.gameTracks
+          genreId,
+          this.gameState.gameTracks,
+          3
         );
+
         // Include current track + 3 random options = 4 total options
-        this.optionTracksCache[currentTrack.id] = [currentTrack, ...randomOptions];
+        this.optionTracksCache[currentTrack.id] = [
+          currentTrack,
+          ...randomOptions,
+        ];
       } catch (error) {
-        console.error("Failed to load option tracks, using game tracks:", error);
+        console.error(
+          "Failed to load option tracks, using game tracks:",
+          error
+        );
         // Fallback: use game tracks
         this.optionTracksCache[currentTrack.id] = this.gameState.gameTracks;
       }
@@ -202,18 +249,15 @@ class GameController {
 
     setTimeout(() => {
       // Play victory or defeat sound
-      const perfectScore = score.correctCount === this.gameState.gameTracks.length;
+      const perfectScore =
+        score.correctCount === this.gameState.gameTracks.length;
       if (perfectScore) {
         soundManager.playVictory();
       } else if (score.correctCount === 0) {
         soundManager.playDefeat();
       }
-      
-      this.modal.showResults(
-        score,
-        this.gameState.gameTracks.length,
-        results
-      );
+
+      this.modal.showResults(score, this.gameState.gameTracks.length, results);
     }, 500);
   }
 
@@ -257,13 +301,18 @@ class GameController {
    * Shows/hides main menu
    */
   showMainMenu() {
-    document.getElementById("main-menu").classList.remove("hidden");
+    const mainMenu = document.getElementById("main-menu");
+    const genreSelection = document.getElementById("genre-selection");
+    if (mainMenu) mainMenu.classList.remove("hidden");
+    if (genreSelection) genreSelection.classList.add("hidden");
   }
 
   hideMainMenu() {
-    document.getElementById("main-menu").classList.add("hidden");
+    const mainMenu = document.getElementById("main-menu");
+    const genreSelection = document.getElementById("genre-selection");
+    if (mainMenu) mainMenu.classList.add("hidden");
+    if (genreSelection) genreSelection.classList.add("hidden");
   }
 }
 
 export default GameController;
-
